@@ -1,0 +1,167 @@
+;------------------------------------------------------------------------------
+; DEFINICAO DE PINOS
+;------------------------------------------------------------------------------
+RS  EQU  P1.3       ; Register Select: 0=Comando, 1=Dado
+RW  EQU  P1.2       ; Read/Write:      0=Escrita, 1=Leitura
+EN  EQU  P1.1       ; Enable: borda de descida aciona o LCD
+ 
+;------------------------------------------------------------------------------
+; VETOR DE RESET E INTERRUPCOES
+;------------------------------------------------------------------------------
+    ORG  0000H
+    JMP  INICIO
+ 
+    ORG  0023H
+    JMP  ISR_SERIAL
+ 
+;==============================================================================
+; INICIO - Configuracao geral do sistema
+;==============================================================================
+    ORG  0030H
+ 
+INICIO:
+    ;--- Inicializa pinos de controle do LCD ---
+    CLR  RS
+    CLR  RW
+ 
+    ;--- Sequencia de inicializacao do LCD (modo 4 bits) ---
+    CALL LCD_FuncSet        ; Function Set: 4 bits, 2 linhas, fonte 5x8
+    CALL LCD_DispCtrl       ; Display Control: display on, cursor on, blink on
+    CALL LCD_EntryMode      ; Entry Mode: incrementa cursor, sem shift
+    CALL LCD_Limpa          ; Limpa display e retorna cursor
+ 
+    ;--- Configuracao da UART ---
+    MOV  PCON, #80H         ; SMOD=1: dobra baud rate
+    MOV  TMOD, #20H         ; Timer1 no modo 2 (auto-reload de 8 bits)
+    MOV  TH1,  #0E6H        ; Reload para 1200 bps @ 11.0592 MHz com SMOD=1
+    MOV  SCON, #50H         ; Modo 1 (8 bits), REN habilitado
+    SETB TR1                ; Inicia Timer1
+ 
+    ;--- Habilita interrupcao serial e interrupcao global ---
+    SETB ES
+    SETB EA
+ 
+;==============================================================================
+; LACO PRINCIPAL
+;==============================================================================
+MAIN_LOOP:
+    SJMP MAIN_LOOP
+ 
+;==============================================================================
+; ISR_SERIAL - Interrupcao de recepcao serial
+;==============================================================================
+ISR_SERIAL:
+    JNB  RI, ISR_SAIDA      ; Ignora se nao foi recepcao (ex: TX)
+    MOV  A, SBUF            ; Le o byte recebido
+    CLR  RI                 ; Limpa flag de recepcao
+ 
+    SETB RS                 ; RS=1: envia como dado (caractere)
+    CLR  RW
+    CALL LCD_SendByte       ; Exibe no LCD
+ 
+ISR_SAIDA:
+    RETI
+ 
+;==============================================================================
+; ROTINAS DE CONTROLE DO LCD
+;==============================================================================
+LCD_Limpa:
+    CLR  RS                 ; RS=0: modo comando
+    CLR  RW
+    MOV  A, #01H
+    CALL LCD_SendByte
+    CALL Delay
+    RET
+ 
+LCD_FuncSet:
+    ; Nibble alto: 0010 (seleciona modo 4 bits)
+    CLR  P1.7
+    CLR  P1.6
+    SETB P1.5
+    CLR  P1.4
+    CALL LCD_Pulso
+    CALL Delay
+ 
+    ; Nibble baixo: 1000 (2 linhas, fonte 5x8)
+    SETB P1.7
+    CLR  P1.6
+    CLR  P1.5
+    CLR  P1.4
+    CALL LCD_Pulso
+    CALL Delay
+    RET
+ 
+LCD_DispCtrl:
+    ; Nibble alto: 0000
+    CLR  P1.7
+    CLR  P1.6
+    CLR  P1.5
+    CLR  P1.4
+    CALL LCD_Pulso
+ 
+    ; Nibble baixo: 1111
+    SETB P1.7
+    SETB P1.6
+    SETB P1.5
+    SETB P1.4
+    CALL LCD_Pulso
+    CALL Delay
+    RET
+ 
+LCD_EntryMode:
+    ; Nibble alto: 0000
+    CLR  P1.7
+    CLR  P1.6
+    CLR  P1.5
+    CLR  P1.4
+    CALL LCD_Pulso
+ 
+    ; Nibble baixo: 0110
+    CLR  P1.7
+    SETB P1.6
+    SETB P1.5
+    CLR  P1.4
+    CALL LCD_Pulso
+    CALL Delay
+    RET
+ 
+LCD_Pulso:
+    SETB EN
+    CLR  EN
+    RET
+ 
+LCD_SendByte:
+    ; Nibble alto (bits 7..4)
+    MOV  C, ACC.7
+    MOV  P1.7, C
+    MOV  C, ACC.6
+    MOV  P1.6, C
+    MOV  C, ACC.5
+    MOV  P1.5, C
+    MOV  C, ACC.4
+    MOV  P1.4, C
+    CALL LCD_Pulso
+ 
+    ; Nibble baixo (bits 3..0)
+    MOV  C, ACC.3
+    MOV  P1.7, C
+    MOV  C, ACC.2
+    MOV  P1.6, C
+    MOV  C, ACC.1
+    MOV  P1.5, C
+    MOV  C, ACC.0
+    MOV  P1.4, C
+    CALL LCD_Pulso
+ 
+    CALL Delay
+    RET
+ 
+Delay:
+    MOV  R6, #20
+Delay_L1:
+    MOV  R7, #250
+    DJNZ R7, $
+    DJNZ R6, Delay_L1
+    RET
+ 
+    END
