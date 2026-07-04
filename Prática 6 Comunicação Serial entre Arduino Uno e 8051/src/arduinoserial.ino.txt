@@ -1,0 +1,15 @@
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Envia o byte exato (0xBA) que corresponde ao caractere Katakana 'Ko' no display
+  Serial.write(0xBA); 
+  
+  // Envia a letra "A" normal logo em seguida
+  Serial.print("A");  
+  
+  // Nota: Juntos, o 89S52 recebera a sequencia exata para formar "コA"
+  
+  delay(2000);  // Aguarda 2 segundos antes de reenviar
+}

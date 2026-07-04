@@ -1,0 +1,73 @@
+#include <Arduino_FreeRTOS.h>
+#include <semphr.h>
+
+volatile unsigned long total_points = 0;
+volatile unsigned long inside_circle = 0;
+SemaphoreHandle_t xMutex;
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial); 
+  
+  randomSeed(analogRead(0));
+  xMutex = xSemaphoreCreateMutex();
+
+  if (xMutex != NULL) {
+    // Tarefa de Calculo: Prioridade 2 (Maior)
+    xTaskCreate(TaskCalcPI, "Calc", 128, NULL, 2, NULL);
+    // Tarefa de Print: Prioridade 1 (Menor)
+    xTaskCreate(TaskPrint, "Print", 192, NULL, 1, NULL);
+  }
+}
+
+void loop() {} // O FreeRTOS assume o controle do fluxo
+
+void TaskCalcPI(void *pvParameters) {
+  (void) pvParameters;
+  while (1) {
+    unsigned long local_total = 0;
+    unsigned long local_inside = 0;
+    
+    // Processamento estocastico em lotes
+    for(int i = 0; i < 200; i++) {
+      float x = random(10000) / 10000.0;
+      float y = random(10000) / 10000.0;
+      if ((x * x) + (y * y) <= 1.0) local_inside++;
+      local_total++;
+    }
+
+    // Acesso as variaveis protegidas
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      total_points += local_total;
+      inside_circle += local_inside;
+      xSemaphoreGive(xMutex);
+    }
+    
+    // Libera a CPU intencionalmente
+    vTaskDelay(1); 
+  }
+}
+
+void TaskPrint(void *pvParameters) {
+  (void) pvParameters;
+  while (1) {
+    unsigned long t = 0, i = 0;
+
+    // Leitura protegida
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      t = total_points;
+      i = inside_circle;
+      xSemaphoreGive(xMutex);
+    }
+
+    // Calculo final de PI e envio serial
+    if (t > 0) {
+      float pi_calc = 4.0 * ((float)i / t);
+      Serial.print("[2 Tarefas] Pontos processados: ");
+      Serial.print(t);
+      Serial.print(" | Valor de PI: ");
+      Serial.println(pi_calc, 5);
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
