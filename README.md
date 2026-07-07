@@ -9,7 +9,7 @@ O objetivo desta prática foi implementar uma arquitetura de comunicação seria
 **O que foi feito:** O Arduino atua como transmissor de uma sequência de bytes, enquanto o 8051 atua como receptor e gerencia a exibição dos dados em um display LCD operando em modo de 4 bits.Um foco do projeto foi renderizar caracteres fora da tabela ASCII padrão acessando diretamente a ROM do display via código hexadecimal.
 * **Tecnologias:** C++ (Arduino), Assembly (8051), UART, Display LCD HD44780.
 
-### 📁 [Prática 7: Controlador PID para Iluminação](./Pratica_07_Controlador_PID) *(Em Andamento)*
+### 📁 [Prática 7: Controlador PID para Iluminação](./Pratica_07_Controlador_PID) 
 Projeto focado na aplicação de Conversão AD e controle em malha fechada.
 * **O que será feito:** Utilização do *Kit Grove* do Arduino (composto por LDR, LED e LCD) para projetar um controlador PID que gerencie o nível de iluminação. O sistema deve manter um valor desejado de incidência de luz (*set point*) no LDR através do controle da intensidade do LED. O ajuste das constantes Proporcional (Kp), Integral (Ki) e Derivativa (Kd) será feito manualmente por tentativa e erro, sem o uso de bibliotecas externas prontas.
 * **Tecnologias:** Arduino, Sensores LDR, PWM, Teoria de Controle (PID).
